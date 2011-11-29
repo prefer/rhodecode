@@ -522,6 +522,10 @@ class Repository(Base, BaseModel):
         return q.one()
 
     @classmethod
+    def get_by_uniq_repo_name(cls, short_repo_name):
+        return Session.query(cls).filter(cls.repo_name.like('%'+short_repo_name)).one()
+        
+    @classmethod
     def get_repo_forks(cls, repo_id):
         return Session.query(cls).filter(Repository.fork_id == repo_id)
 

@@ -34,11 +34,12 @@ from mercurial.hgweb import hgweb_mod
 from paste.auth.basic import AuthBasicAuthenticator
 from paste.httpheaders import REMOTE_USER, AUTH_TYPE
 
+
 from rhodecode.lib import safe_str
 from rhodecode.lib.auth import authfunc, HasPermissionAnyMiddleware
 from rhodecode.lib.utils import make_ui, invalidate_cache, \
     is_valid_repo, ui_sections
-from rhodecode.model.db import User
+from rhodecode.model.db import User, Repository
 
 from webob.exc import HTTPNotFound, HTTPForbidden, HTTPInternalServerError
 
@@ -133,6 +134,8 @@ class SimpleHg(object):
                     username = REMOTE_USER(environ)
                     try:
                         user = self.__get_user(username)
+                        if user is None:
+                            return HTTPForbidden()(environ, start_response)
                         username = user.username
                     except:
                         log.error(traceback.format_exc())
@@ -219,9 +222,15 @@ class SimpleHg(object):
         :param environ: environ where PATH_INFO is stored
         """
         try:
-            repo_name = '/'.join(environ['PATH_INFO'].split('/')[1:])
-            if repo_name.endswith('/'):
+            repo_name = '/'.join(environ['PATH_INFO'].split('/')[1:]).rstrip('/')
+
+            if not '/' in repo_name:
+                repo_name = Repository.get_by_uniq_repo_name(repo_name).repo_name
+                environ['PATH_INFO'] = '/' + repo_name
+
+            elif repo_name.endswith('/'):
                 repo_name = repo_name.rstrip('/')
+                
         except:
             log.error(traceback.format_exc())
             raise
